@@ -34,6 +34,10 @@ func main() {
 	http.HandleFunc("/book", handleGetBookById)
 
 	http.HandleFunc("/delete", handleDeleteBookById)
+
+	http.HandleFunc("/add", handleAddBook)
+
+	http.HandleFunc("/update", handleUpdateBook)
 	fmt.Printf("App is listening on %v\n", PORT)
 	err := http.ListenAndServe(PORT, nil)
 	// stop the app is any error to start the server
@@ -52,18 +56,7 @@ func handleGetBooks(w http.ResponseWriter, r *http.Request) {
 		w.Write(booksByte)
 	}
 }
-func getBooks() ([]Book, error) {
-	books := []Book{}
-	booksByte, err := ioutil.ReadFile("./books.json")
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(booksByte, &books)
-	if err != nil {
-		return nil, err
-	}
-	return books, nil
-}
+
 func handleGetBookById(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query()
@@ -85,24 +78,7 @@ func handleGetBookById(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
-func getBookById(id string) (Book, int, error) {
-	books, err := getBooks()
-	var requestedBook Book
-	var requestedBookIndex int
 
-	if err != nil {
-		return Book{}, 0, err
-	}
-
-	for i, book := range books {
-		if book.Id == id {
-			requestedBook = book
-			requestedBookIndex = i
-		}
-	}
-
-	return requestedBook, requestedBookIndex, nil
-}
 func handleDeleteBookById(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query()
 	bookId := query.Get("id")
@@ -129,21 +105,74 @@ func handleDeleteBookById(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+func handleAddBook(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		newBookByte, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Client Error %v\n", err)
+			w.WriteHeader(400)
+			w.Write(jsonMessageByte("Bad Request"))
+		} else {
+			books, _ := getBooks()
+			var newBooks Book
+			json.Unmarshal(newBookByte, &newBooks)
+			books = append(books, newBooks)
+
+			err = saveBooks(books)
+			if err != nil {
+				log.Printf("Server Error %v\n", err)
+				w.WriteHeader(500)
+				w.Write(jsonMessageByte("Internal server error"))
+			} else {
+				w.Write(jsonMessageByte("New book added successfully"))
+			}
+		}
+	}
+}
+func handleUpdateBook(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		updateBookByte, err := ioutil.ReadAll(r.Body)
+		// check for valid data from client
+		if err != nil {
+			log.Printf("Client Error %v\n", err)
+			w.WriteHeader(400)
+			w.Write(jsonMessageByte("Bad Request"))
+		} else {
+			var updateBook Book // to update a book
+
+			err = json.Unmarshal(updateBookByte, &updateBook) // new book added
+			checkError(err)
+			id := updateBook.Id
+
+			book, _, _ := getBookById(id)
+			// check requested book exists or not
+			if (Book{}) == book {
+				w.Write(jsonMessageByte("Book Not found"))
+			} else {
+				books, _ := getBooks()
+
+				for i, book := range books {
+					if book.Id == updateBook.Id {
+						books[i] = updateBook
+					}
+				}
+				// write books in books.json
+				err = saveBooks(books)
+				// send server error as response
+				if err != nil {
+					log.Printf("Server Error %v\n", err)
+					w.WriteHeader(500)
+					w.Write(jsonMessageByte("Internal server error"))
+				} else {
+					w.Write(jsonMessageByte("Book updated successfully"))
+				}
+			}
+		}
+	}
+}
 func checkError(err error) {
 	if err != nil {
 		log.Printf("Error - %v", err)
 	}
-
-}
-func saveBooks(books []Book) error {
-
-	// converting into bytes for writing into a file
-	booksBytes, err := json.Marshal(books)
-
-	checkError(err)
-
-	err = ioutil.WriteFile("./books.json", booksBytes, 0644)
-
-	return err
 
 }
