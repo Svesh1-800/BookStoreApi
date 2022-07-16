@@ -1,23 +1,31 @@
-package main
+package models
 
 import (
 	"encoding/json"
 	"io/ioutil"
+
+	"github.com/svesh1-800/bookstore/pkg/utils"
 )
 
-func saveBooks(books []Book) error {
+type Book struct {
+	Id       string `json:"id"`
+	Title    string `json:"title"`
+	Author   string `json:"author"`
+	Price    string `json:"price"`
+	ImageUrl string `json:"image_url"`
+}
 
-	// converting into bytes for writing into a file
+func SaveBooks(books []Book) error {
+
 	booksBytes, err := json.Marshal(books)
-
-	checkError(err)
+	utils.CheckError(err)
 
 	err = ioutil.WriteFile("./books.json", booksBytes, 0644)
 
 	return err
 
 }
-func getBooks() ([]Book, error) {
+func GetBooks() ([]Book, error) {
 	books := []Book{}
 	booksByte, err := ioutil.ReadFile("./books.json")
 	if err != nil {
@@ -29,8 +37,8 @@ func getBooks() ([]Book, error) {
 	}
 	return books, nil
 }
-func getBookById(id string) (Book, int, error) {
-	books, err := getBooks()
+func GetBookById(id string) (Book, int, error) {
+	books, err := GetBooks()
 	var requestedBook Book
 	var requestedBookIndex int
 
