@@ -38,7 +38,7 @@ func HandleGetBookById(w http.ResponseWriter, r *http.Request) {
 		if (models.Book{}) == book {
 			w.Write(utils.JsonMessageByte("Book Not found"))
 		} else {
-			bookByte, _ := json.Marshal(book)
+			bookByte, _ := json.MarshalIndent(book, "", "\t")
 			w.Write(bookByte)
 		}
 	}
